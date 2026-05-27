@@ -1,0 +1,6 @@
+{
+  "name": "Chaar Yaar Birthday Protocol",
+  "description": "A surprise birthday website with a hacked intro and admin panel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
