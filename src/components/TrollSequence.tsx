@@ -185,7 +185,7 @@ export default function TrollSequence({ onComplete, onPlayAudio }: { onComplete:
   useEffect(() => {
     if (phase === 'terminal') {
       const parsedPerson = JSON.parse(localStorage.getItem('chaarYaarPerson') || '{}');
-      const targetName = parsedPerson?.name || birthdayBoy;
+     const targetName = parsedPerson?.name || person?.name;
       
       const lines = [
         "Scanning for noob...",
