@@ -3,11 +3,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Lock, Save, LogOut, Plus, Trash2 } from 'lucide-react';
 import { BirthdayPerson, Sender, PolaroidImage, defaultBirthdayPerson, defaultSenders, defaultPolaroids } from '../types';
 
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
 export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   
   const [person, setPerson] = useState<BirthdayPerson>(defaultBirthdayPerson);
   const [senders, setSenders] = useState<Sender[]>(defaultSenders);
@@ -52,15 +55,51 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
     localStorage.removeItem('chaarYaarAdminAuth');
   };
 
-  const handleSave = () => {
-    localStorage.setItem('chaarYaarPerson', JSON.stringify(person));
-    localStorage.setItem('chaarYaarSenders', JSON.stringify(senders));
-    localStorage.setItem('chaarYaarTheme', theme);
-    localStorage.setItem('chaarYaarPolaroids', JSON.stringify(polaroids));
-    window.dispatchEvent(new Event('friendsUpdated'));
-    window.dispatchEvent(new Event('themeUpdated'));
-    window.dispatchEvent(new Event('polaroidsUpdated'));
-    onClose();
+  const handleSave = async () => {
+    setSaveStatus('saving');
+    
+    try {
+      // Simulate save operation
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      
+      // Save all data to localStorage
+      localStorage.setItem('chaarYaarPerson', JSON.stringify(person));
+      localStorage.setItem('chaarYaarSenders', JSON.stringify(senders));
+      localStorage.setItem('chaarYaarTheme', theme);
+      localStorage.setItem('chaarYaarPolaroids', JSON.stringify(polaroids));
+      
+      // Dispatch custom events to notify ALL components to re-render with new data
+      // Use a global flag to force updates
+      window.__ADMIN_UPDATED__ = true;
+      
+      // Dispatch multiple events to ensure all listeners catch the update
+      window.dispatchEvent(new CustomEvent('friendsUpdated', { detail: { senders } }));
+      window.dispatchEvent(new CustomEvent('themeUpdated', { detail: { theme } }));
+      window.dispatchEvent(new CustomEvent('polaroidsUpdated', { detail: { polaroids } }));
+      window.dispatchEvent(new CustomEvent('personUpdated', { detail: { person } }));
+      window.dispatchEvent(new CustomEvent('adminDataUpdated', { detail: { person, senders, theme, polaroids } }));
+      
+      // Force a storage event to trigger any storage listeners
+      const storageEvent = new StorageEvent('storage', {
+        key: 'chaarYaarAdminUpdate',
+        newValue: JSON.stringify({ person, senders, theme, polaroids, timestamp: Date.now() }),
+        oldValue: null,
+        storageArea: localStorage,
+      });
+      window.dispatchEvent(storageEvent);
+      
+      setSaveStatus('saved');
+      
+      // Reset status and close panel after delay
+      setTimeout(() => {
+        setSaveStatus('idle');
+        onClose();
+      }, 2000);
+    } catch (err) {
+      console.error('Save failed:', err);
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    }
   };
 
   const updateSender = (id: string, field: keyof Sender, value: string) => {
@@ -111,7 +150,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
         
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.6); // Compress
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
         updatePolaroid(id, 'url', dataUrl);
       };
       if (event.target?.result) {
@@ -159,7 +198,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                       type="text" 
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-md px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-md px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                       placeholder="Enter admin ID"
                     />
                   </div>
@@ -169,7 +208,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                       type="password" 
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-md px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-md px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                       placeholder="••••••••"
                     />
                   </div>
@@ -200,12 +239,12 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                           localStorage.removeItem('chaarYaarSequenceDone');
                           window.location.reload();
                         }}
-                        className="text-sm font-bold text-amber-400 hover:text-amber-300 flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-2 rounded-lg transition-colors border border-amber-500/20 whitespace-nowrap"
+                        className="text-sm font-bold text-amber-400 hover:text-amber-300 flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-2 rounded-lg transition-colors border border-amber-500/30"
                         title="Clear data to replay the intro/candle sequence"
                       >
                         <Trash2 className="w-4 h-4" /> Reset Intro
                       </button>
-                      <button onClick={handleLogout} className="text-sm font-bold text-rose-400 hover:text-rose-300 flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 px-4 py-2 rounded-lg transition-colors border border-rose-500/20 whitespace-nowrap">
+                      <button onClick={handleLogout} className="text-sm font-bold text-rose-400 hover:text-rose-300 flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 px-4 py-2 rounded-lg transition-colors border border-rose-500/30">
                         <LogOut className="w-4 h-4" /> Lock Terminal
                       </button>
                     </div>
@@ -289,7 +328,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                               value={sender.message}
                               onChange={(e) => updateSender(sender.id, 'message', e.target.value)}
                               rows={sender.special === 'CS' ? 3 : 2}
-                              className={`w-full bg-slate-950 border border-slate-700/80 rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors leading-relaxed ${sender.special === 'CS' ? 'font-mono text-green-400' : ''}`}
+                              className="w-full bg-slate-950 border border-slate-700/80 rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors leading-relaxed"
                             />
                           </div>
                         </div>
@@ -366,14 +405,67 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                     </div>
                   </div>
                   
-                  {/* Footer Actions */}
-                  <div className="flex justify-end pt-6 border-t border-slate-800/80 sticky bottom-0 bg-[#0b1120] pb-2 z-10">
-                    <button 
+                  {/* Footer Actions with Save Status */}
+                  <div className="flex justify-end pt-6 border-t border-slate-800/80 sticky bottom-0 bg-[#0b1120] pb-2 z-10 gap-3">
+                    {/* Save Status Indicator */}
+                    <AnimatePresence>
+                      {saveStatus !== 'idle' && (
+                        <motion.div
+                          initial={{ opacity: 0, x: 10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 10 }}
+                          className={`flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium ${
+                            saveStatus === 'saving' ? 'bg-blue-500/20 text-blue-300' :
+                            saveStatus === 'saved' ? 'bg-emerald-500/20 text-emerald-300' :
+                            'bg-rose-500/20 text-rose-300'
+                          }`}
+                        >
+                          {saveStatus === 'saving' && (
+                            <>
+                              <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 1.5, repeat: Infinity }}
+                                className="w-4 h-4"
+                              >
+                                <div className="w-4 h-4 border-2 border-blue-300 border-t-transparent rounded-full" />
+                              </motion.div>
+                              Saving changes...
+                            </>
+                          )}
+                          {saveStatus === 'saved' && (
+                            <>
+                              <motion.svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: 'spring', stiffness: 200 }}
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </motion.svg>
+                              ✅ All changes saved and applied!
+                            </>
+                          )}
+                          {saveStatus === 'error' && (
+                            <>
+                              <span>❌ Error saving changes</span>
+                            </>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    
+                    <motion.button 
                       onClick={handleSave}
-                      className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3 rounded-lg transition-colors shadow-[0_0_20px_rgba(5,150,105,0.2)] hover:shadow-[0_0_25px_rgba(5,150,105,0.4)] font-bold tracking-wide"
+                      disabled={saveStatus === 'saving'}
+                      whileHover={{ scale: saveStatus === 'saving' ? 1 : 1.02 }}
+                      whileTap={{ scale: saveStatus === 'saving' ? 1 : 0.98 }}
+                      className={`flex items-center gap-2 text-white px-8 py-3 rounded-lg transition-all font-semibold ${
+                        saveStatus === 'saving' 
+                          ? 'bg-slate-600 cursor-not-allowed opacity-75' 
+                          : 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_20px_rgba(5,150,105,0.3)] hover:shadow-[0_0_30px_rgba(5,150,105,0.4)]'
+                      }`}
                     >
-                      <Save className="w-5 h-5" /> Deploy Saved Data
-                    </button>
+                      <Save className="w-5 h-5" /> {saveStatus === 'saving' ? 'Deploying...' : 'Deploy Saved Data'}
+                    </motion.button>
                   </div>
                 </div>
               )}

@@ -46,31 +46,31 @@ function PolaroidCard({
   const isTop = index === stackLength - 1;
   const visualIndex = stackLength - 1 - index;
 
-  const yOffset = isSelected ? 0 : visualIndex * 15;
-  const rotateOffset = isSelected ? 0 : (visualIndex % 2 === 0 ? -1 : 1) * visualIndex * 3;
-  const scaleOffset = isSelected ? 1.25 : Math.max(0.8, 1 - visualIndex * 0.05);
+  const yOffset = isSelected ? 0 : visualIndex * 12;
+  const rotateOffset = isSelected ? 0 : (visualIndex % 2 === 0 ? -1 : 1) * visualIndex * 2.5;
+  const scaleOffset = isSelected ? 1.25 : Math.max(0.82, 1 - visualIndex * 0.04);
   const zIndexVal = isSelected ? 100 : index;
   const opacityVal = visualIndex > 4 ? 0 : 1;
 
-  // React to the top card being dragged
+  // React to the top card being dragged with smoother animation
   const innerScale = useTransform(dragProgress, (p: number) => {
     if (isTop || isSelected) return 1;
-    const base = Math.max(0.8, 1 - visualIndex * 0.05);
-    const target = Math.max(0.8, 1 - Math.max(0, visualIndex - p) * 0.05);
+    const base = Math.max(0.82, 1 - visualIndex * 0.04);
+    const target = Math.max(0.82, 1 - Math.max(0, visualIndex - p) * 0.04);
     return target / base;
   });
 
   const innerY = useTransform(dragProgress, (p: number) => {
     if (isTop || isSelected) return 0;
-    return -p * 15;
+    return -p * 12;
   });
 
-  // Subtle drift animation for the pile effect
+  // Subtle, smooth drift animation for the pile effect
   const driftAnimation = (!isSelected && !isTop && hasEntered) ? {
-    x: [0, (Math.random() - 0.5) * 6, 0],
-    y: [0, (Math.random() - 0.5) * 6, 0],
+    x: [0, (Math.random() - 0.5) * 4, 0],
+    y: [0, (Math.random() - 0.5) * 4, 0],
     transition: {
-      duration: 3 + Math.random() * 2,
+      duration: 4 + Math.random() * 2,
       repeat: Infinity,
       repeatType: "reverse" as const,
       ease: "easeInOut"
@@ -103,10 +103,12 @@ function PolaroidCard({
         }
       }
       transition={{ 
-        duration: isSelected ? 0.4 : 0.8, 
-        delay: (!hasEntered && isInView && !isSelected) ? 0.2 + index * 0.15 : 0, 
+        duration: isSelected ? 0.5 : 0.9, 
+        delay: (!hasEntered && isInView && !isSelected) ? 0.2 + index * 0.12 : 0, 
         type: 'spring', 
-        bounce: 0.3 
+        bounce: 0.25,
+        stiffness: 120,
+        damping: 15
       }}
       style={{
         position: 'absolute',
@@ -117,12 +119,12 @@ function PolaroidCard({
       <motion.div
         drag={isTop && !isSelected}
         dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-        dragElastic={0.8}
+        dragElastic={0.6}
         onDrag={handleDrag}
         whileDrag={{ 
-          scale: 1.05, 
+          scale: 1.08, 
           cursor: 'grabbing',
-          rotate: [rotateOffset - 2, rotateOffset + 2, rotateOffset - 2, rotateOffset + 2, rotateOffset - 2, rotateOffset + 2, rotateOffset]
+          rotate: [rotateOffset - 3, rotateOffset + 3, rotateOffset - 3, rotateOffset + 3, rotateOffset - 3, rotateOffset + 3, rotateOffset]
         }}
         onDragStart={() => playPopSound(250)}
         onDragEnd={(e, info) => handleDragEnd(e, info, image.id)}
@@ -134,19 +136,24 @@ function PolaroidCard({
         }}
         animate={driftAnimation}
         style={(!isTop && !isSelected) ? { scale: innerScale, y: innerY } : {}}
-        className={`bg-white p-2 pb-6 md:p-3 md:pb-8 shadow-xl transition-shadow rounded-sm border border-gray-200 w-48 h-56 md:w-64 md:h-72 flex flex-col items-center justify-between touch-none ${isSelected ? 'shadow-2xl ring-4 ring-white/10 cursor-zoom-out' : isTop ? 'hover:shadow-2xl cursor-grab' : 'cursor-default'}`}
+        className="bg-white p-2 pb-6 md:p-3 md:pb-8 shadow-2xl transition-shadow rounded-sm border border-gray-200 w-48 h-56 md:w-64 md:h-72 flex flex-col items-center justify-between touch-none cursor-grab active:cursor-grabbing"
       >
-        <div 
-          className="w-full h-full bg-slate-200 mb-2 border border-black/10 overflow-hidden bg-cover bg-center pointer-events-none"
+        <motion.div 
+          className="w-full h-full bg-slate-200 mb-2 border border-black/10 overflow-hidden bg-cover bg-center pointer-events-none rounded-xs"
           style={{ 
             backgroundImage: `url(${image.url})`,
-            filter: isSelected ? "none" : (isTop ? "grayscale(10%)" : "grayscale(50%) contrast(1.1) sepia(20%)"),
-            transition: "filter 0.4s ease"
+            filter: isSelected ? "none" : (isTop ? "grayscale(5%)" : "grayscale(40%) contrast(1.05) sepia(15%)"),
           }}
+          transition={{ filter: { duration: 0.5, ease: "easeInOut" } }}
         />
-        <span className="font-sans text-gray-800 text-xs md:text-sm font-medium transform -rotate-1 truncate max-w-full pointer-events-none">
+        <motion.span 
+          className="font-sans text-gray-800 text-xs md:text-sm font-medium transform -rotate-1 truncate max-w-full pointer-events-none"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
           {image.caption}
-        </span>
+        </motion.span>
       </motion.div>
     </motion.div>
   );
@@ -156,25 +163,23 @@ export default function PolaroidPile({ images }: { images: PolaroidImage[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [hasEntered, setHasEntered] = useState(false);
+  const [stack, setStack] = useState<PolaroidImage[]>([]);
   
   // Only trigger entry when the user scrolls near the pile
   const isInView = useInView(containerRef, { once: true, margin: "20%" });
   
   const dragProgress = useMotionValue(0);
 
-  // Bottom to Top stack representation
-  const [stack, setStack] = useState<PolaroidImage[]>([]);
-
   useEffect(() => {
     if (images && images.length > 0 && stack.length === 0) {
       setStack([...images].reverse());
     }
-  }, [images]);
+  }, [images, stack.length]);
 
   useEffect(() => {
     if (isInView && !hasEntered) {
       // Mark as entered after the stagger animation completes
-      setTimeout(() => setHasEntered(true), images.length * 150 + 800);
+      setTimeout(() => setHasEntered(true), images.length * 120 + 800);
     }
   }, [isInView, hasEntered, images.length]);
 
@@ -188,8 +193,8 @@ export default function PolaroidPile({ images }: { images: PolaroidImage[] }) {
   const handleDragEnd = (event: any, info: PanInfo, imageId: string) => {
     const threshold = 100;
     
-    // Animate the cards underneath back to the resting state if not shuffled
-    animate(dragProgress, 0, { type: "spring", bounce: 0.3 });
+    // Animate the cards underneath back to the resting state with smooth spring
+    animate(dragProgress, 0, { type: "spring", bounce: 0.2, stiffness: 150 });
 
     // If dragged roughly past threshold in any direction, shuffle!
     if (Math.abs(info.offset.x) > threshold || Math.abs(info.offset.y) > threshold) {
@@ -209,16 +214,32 @@ export default function PolaroidPile({ images }: { images: PolaroidImage[] }) {
   };
 
   return (
-    <div ref={containerRef} className="w-full relative py-16 grid place-items-center min-h-[550px] overflow-hidden my-8 px-4">
-      <h3 className="absolute top-4 md:top-8 left-0 right-0 text-xl md:text-2xl font-bold text-white/50 z-0 text-center px-4 w-full">
+    <motion.div 
+      ref={containerRef} 
+      className="w-full relative py-16 grid place-items-center min-h-[550px] overflow-hidden my-8 px-4"
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
+      transition={{ duration: 0.6 }}
+      viewport={{ once: true }}
+    >
+      <motion.h3 
+        className="absolute top-4 md:top-8 left-0 right-0 text-xl md:text-2xl font-bold text-white/50 z-0 text-center px-4 w-full"
+        initial={{ opacity: 0, y: -20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        viewport={{ once: true }}
+      >
         Memories 📸<br/><span className="text-sm font-normal">(Swipe to shuffle, Tap to inspect!)</span>
-      </h3>
+      </motion.h3>
       
       {/* Invisible overlay to collapse inspected photo if clicked outside */}
       {activeId && (
-        <div 
+        <motion.div 
           className="absolute inset-0 z-40 cursor-zoom-out"
           onClick={() => setActiveId(null)}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
         />
       )}
 
@@ -239,6 +260,6 @@ export default function PolaroidPile({ images }: { images: PolaroidImage[] }) {
           />
         ))}
       </div>
-    </div>
+    </motion.div>
   );
 }
