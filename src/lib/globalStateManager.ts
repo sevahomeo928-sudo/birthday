@@ -1,10 +1,10 @@
 /**
  * Global State Manager for Cross-Tab Communication
- * Broadcasts state changes across all tabs/windows using localStorage
- * with fallback support for real-time sync
+ * Now uses Supabase Realtime instead of WebSocket
+ * Broadcasts state changes across all tabs/windows and globally
  */
 
-import { realtimeSyncManager } from './realtimeSync';
+import { realtimeSyncManager } from './supabaseRealtimeSync';
 
 type StateListener = (data: any) => void;
 type StateType = 'person' | 'senders' | 'theme' | 'polaroids';
@@ -26,7 +26,7 @@ class GlobalStateManager {
   }
 
   private setupRealtimeSync() {
-    // Subscribe to real-time updates from WebSocket
+    // Subscribe to real-time updates from Supabase
     const types: StateType[] = ['person', 'senders', 'theme', 'polaroids'];
     types.forEach(type => {
       realtimeSyncManager.subscribe(type, (data) => {
@@ -101,7 +101,7 @@ class GlobalStateManager {
   }
 
   /**
-   * Broadcast a state update to all clients globally via real-time sync
+   * Broadcast a state update to all clients globally via Supabase Realtime
    */
   broadcast(type: StateType, data: any) {
     const now = Date.now();
@@ -122,7 +122,7 @@ class GlobalStateManager {
       console.error('Failed to save to localStorage:', e);
     }
 
-    // Broadcast via real-time sync (WebSocket)
+    // Broadcast via Supabase Realtime
     realtimeSyncManager.broadcast(type, data);
 
     // Also notify local listeners
