@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Lock, Save, LogOut, Plus, Trash2 } from 'lucide-react';
+import { X, Lock, Save, LogOut, Plus, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { BirthdayPerson, Sender, PolaroidImage, defaultBirthdayPerson, defaultSenders, defaultPolaroids } from '../types';
 import { globalStateManager } from '../lib/globalStateManager';
 
-type SaveStatus = 'idle' | 'saving' | 'saved';
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -12,6 +12,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [isConnected, setIsConnected] = useState(false);
   
   const [person, setPerson] = useState<BirthdayPerson>(defaultBirthdayPerson);
   const [senders, setSenders] = useState<Sender[]>(defaultSenders);
@@ -38,6 +39,17 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
     if (savedPolaroids) setPolaroids(JSON.parse(savedPolaroids));
   }, [isOpen]);
 
+  // Monitor real-time connection status
+  useEffect(() => {
+    const checkConnection = () => {
+      setIsConnected(globalStateManager.isRealtimeConnected());
+    };
+    
+    checkConnection();
+    const interval = setInterval(checkConnection, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (username === 'mag85158' && password === 'magadmin') {
@@ -60,7 +72,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
     setSaveStatus('saving');
     
     try {
-      // Broadcast all state changes to other tabs using global state manager
+      // Broadcast all state changes globally
       globalStateManager.broadcast('person', person);
       globalStateManager.broadcast('senders', senders);
       globalStateManager.broadcast('theme', theme);
@@ -83,7 +95,8 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
       }, 1500);
     } catch (err) {
       console.error('Save failed:', err);
-      setSaveStatus('idle');
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 2000);
     }
   };
 
@@ -135,7 +148,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
         
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.6); // Compress
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
         updatePolaroid(id, 'url', dataUrl);
       };
       if (event.target?.result) {
@@ -165,9 +178,28 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                 <Lock className="w-5 h-5 text-cyan-400" />
                 Admin Protocol Terminal
               </h2>
-              <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
-                 <X className="w-6 h-6" />
-              </button>
+              <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium ${
+                  isConnected 
+                    ? 'bg-green-500/20 text-green-300' 
+                    : 'bg-amber-500/20 text-amber-300'
+                }`}>
+                  {isConnected ? (
+                    <>
+                      <Wifi className="w-3.5 h-3.5" />
+                      <span>Live Sync</span>
+                    </>
+                  ) : (
+                    <>
+                      <WifiOff className="w-3.5 h-3.5" />
+                      <span>Offline Mode</span>
+                    </>
+                  )}
+                </div>
+                <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+                   <X className="w-6 h-6" />
+                </button>
+              </div>
             </div>
 
             <div className="p-6 md:p-8 overflow-y-auto">
@@ -209,7 +241,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
               ) : (
                 <div className="space-y-10">
                   <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/10 drop-shadow flex-wrap gap-4">
-                    <p className="text-cyan-100/80 text-sm font-medium">Configure deployed parameters below. Changes are cached locally.</p>
+                    <p className="text-cyan-100/80 text-sm font-medium">Configure deployed parameters. Changes sync instantly to all users globally.</p>
                     <div className="flex items-center gap-4">
                       <select 
                         value={theme}
@@ -400,7 +432,9 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                           ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_20px_rgba(5,150,105,0.2)]' 
                           : saveStatus === 'saving'
                           ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.2)]'
-                          : 'bg-green-600 text-white shadow-[0_0_20px_rgba(34,197,94,0.2)]'
+                          : saveStatus === 'saved'
+                          ? 'bg-green-600 text-white shadow-[0_0_20px_rgba(34,197,94,0.2)]'
+                          : 'bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.2)]'
                       }`}
                     >
                       <Save className="w-5 h-5" />
@@ -415,7 +449,8 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                             </span>
                           </span>
                         )}
-                        {saveStatus === 'saved' && 'Saved!'}
+                        {saveStatus === 'saved' && 'Saved! 🎉'}
+                        {saveStatus === 'error' && 'Error'}
                       </span>
                     </button>
                   </div>

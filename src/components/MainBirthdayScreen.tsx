@@ -52,7 +52,7 @@ export default function MainBirthdayScreen({ adminOpen, onPlayAudio }: { adminOp
       .catch(() => {});
   }, []);
 
-  // Subscribe to global state changes for cross-tab updates
+  // Subscribe to global state changes for real-time sync
   useEffect(() => {
     const unsubscribePerson = globalStateManager.subscribe('person', (data) => {
       setPerson(data);
@@ -120,7 +120,7 @@ export default function MainBirthdayScreen({ adminOpen, onPlayAudio }: { adminOp
 
     const fallback = setTimeout(() => {
       setRevealState('revealed');
-    }, 4000); // safety fallback
+    }, 4000);
 
     return () => {
       clearInterval(interval);
@@ -130,7 +130,6 @@ export default function MainBirthdayScreen({ adminOpen, onPlayAudio }: { adminOp
 
   useEffect(() => {
     if (onPlayAudio) {
-      // Just ensure audio plays (user interaction might be needed on mobile, but it's already playing from previous screen)
       const forcePlay = () => onPlayAudio(false);
       
       document.addEventListener('click', forcePlay);

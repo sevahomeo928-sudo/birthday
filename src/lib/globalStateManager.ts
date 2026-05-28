@@ -1,8 +1,10 @@
 /**
  * Global State Manager for Cross-Tab Communication
- * Broadcasts state changes across all tabs/windows using BroadcastChannel API
- * with localStorage as fallback for older browsers
+ * Broadcasts state changes across all tabs/windows using localStorage
+ * with fallback support for real-time sync
  */
+
+import { realtimeSyncManager } from './realtimeSync';
 
 type StateListener = (data: any) => void;
 type StateType = 'person' | 'senders' | 'theme' | 'polaroids';
@@ -15,34 +17,29 @@ interface StateUpdate {
 
 class GlobalStateManager {
   private listeners: Map<StateType, Set<StateListener>> = new Map();
-  private broadcastChannel: BroadcastChannel | null = null;
   private lastUpdate: Map<StateType, number> = new Map();
   private updateDebounceTime = 100; // ms
 
   constructor() {
-    this.initBroadcastChannel();
+    this.setupRealtimeSync();
     this.setupStorageListener();
   }
 
-  private initBroadcastChannel() {
-    try {
-      this.broadcastChannel = new BroadcastChannel('chaarYaarState');
-      this.broadcastChannel.onmessage = (event) => {
-        const message = event.data as StateUpdate;
-        this.notifyListeners(message.type, message.data);
-      };
-    } catch (e) {
-      // BroadcastChannel not supported, will use storage events
-      console.debug('BroadcastChannel not available, using storage events');
-    }
+  private setupRealtimeSync() {
+    // Subscribe to real-time updates from WebSocket
+    const types: StateType[] = ['person', 'senders', 'theme', 'polaroids'];
+    types.forEach(type => {
+      realtimeSyncManager.subscribe(type, (data) => {
+        this.notifyListeners(type, data);
+      });
+    });
   }
 
   private setupStorageListener() {
-    // Listen for storage changes from other tabs
+    // Listen for storage changes from other tabs (fallback)
     window.addEventListener('storage', (event) => {
       if (!event.key) return;
       
-      // Check if this is one of our state keys
       const stateType = this.getStateTypeFromKey(event.key);
       if (stateType && event.newValue) {
         try {
@@ -104,7 +101,7 @@ class GlobalStateManager {
   }
 
   /**
-   * Broadcast a state update to all tabs
+   * Broadcast a state update to all clients globally via real-time sync
    */
   broadcast(type: StateType, data: any) {
     const now = Date.now();
@@ -125,18 +122,8 @@ class GlobalStateManager {
       console.error('Failed to save to localStorage:', e);
     }
 
-    // Broadcast via BroadcastChannel if available
-    if (this.broadcastChannel) {
-      try {
-        this.broadcastChannel.postMessage({
-          type,
-          data,
-          timestamp: now
-        } as StateUpdate);
-      } catch (e) {
-        console.error('Failed to broadcast state:', e);
-      }
-    }
+    // Broadcast via real-time sync (WebSocket)
+    realtimeSyncManager.broadcast(type, data);
 
     // Also notify local listeners
     this.notifyListeners(type, data);
@@ -161,13 +148,18 @@ class GlobalStateManager {
   }
 
   /**
+   * Get connection status
+   */
+  isRealtimeConnected(): boolean {
+    return realtimeSyncManager.isConnected();
+  }
+
+  /**
    * Clean up resources
    */
   destroy() {
-    if (this.broadcastChannel) {
-      this.broadcastChannel.close();
-    }
     this.listeners.clear();
+    realtimeSyncManager.destroy();
   }
 }
 
