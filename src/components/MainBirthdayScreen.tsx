@@ -51,10 +51,9 @@ const MainBirthdayScreen = ({ adminOpen, onPlayAudio }: MainBirthdayScreenProps)
     loadData();
   }, []);
 
-  // Listen for admin updates - THIS IS THE KEY FIX
+  // Listen for admin updates
   useEffect(() => {
     const handleAdminUpdate = () => {
-      // Reload all data from localStorage
       const savedPerson = localStorage.getItem('chaarYaarPerson');
       if (savedPerson) setPerson(JSON.parse(savedPerson));
 
@@ -70,25 +69,16 @@ const MainBirthdayScreen = ({ adminOpen, onPlayAudio }: MainBirthdayScreenProps)
 
       const savedPolaroids = localStorage.getItem('chaarYaarPolaroids');
       if (savedPolaroids) setPolaroids(JSON.parse(savedPolaroids));
-
-      console.log('✅ Admin data updated - all components refreshed');
     };
 
-    // Listen to multiple event types to ensure we catch the update
     window.addEventListener('friendsUpdated', handleAdminUpdate);
     window.addEventListener('themeUpdated', handleAdminUpdate);
     window.addEventListener('polaroidsUpdated', handleAdminUpdate);
-    window.addEventListener('personUpdated', handleAdminUpdate);
-    window.addEventListener('adminDataUpdated', handleAdminUpdate);
-    window.addEventListener('storage', handleAdminUpdate);
 
     return () => {
       window.removeEventListener('friendsUpdated', handleAdminUpdate);
       window.removeEventListener('themeUpdated', handleAdminUpdate);
       window.removeEventListener('polaroidsUpdated', handleAdminUpdate);
-      window.removeEventListener('personUpdated', handleAdminUpdate);
-      window.removeEventListener('adminDataUpdated', handleAdminUpdate);
-      window.removeEventListener('storage', handleAdminUpdate);
     };
   }, []);
 
