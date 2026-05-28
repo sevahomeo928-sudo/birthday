@@ -72,11 +72,19 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
     setSaveStatus('saving');
     
     try {
-      // Broadcast all state changes globally
-      globalStateManager.broadcast('person', person);
-      globalStateManager.broadcast('senders', senders);
-      globalStateManager.broadcast('theme', theme);
-      globalStateManager.broadcast('polaroids', polaroids);
+      // Save to localStorage first
+      localStorage.setItem('chaarYaarPerson', JSON.stringify(person));
+      localStorage.setItem('chaarYaarSenders', JSON.stringify(senders));
+      localStorage.setItem('chaarYaarTheme', theme);
+      localStorage.setItem('chaarYaarPolaroids', JSON.stringify(polaroids));
+      
+      // Broadcast all state changes globally via Supabase Realtime
+      await Promise.all([
+        globalStateManager.broadcast('person', person),
+        globalStateManager.broadcast('senders', senders),
+        globalStateManager.broadcast('theme', theme),
+        globalStateManager.broadcast('polaroids', polaroids),
+      ]);
       
       // Also dispatch custom events for backward compatibility
       window.dispatchEvent(new Event('friendsUpdated'));
