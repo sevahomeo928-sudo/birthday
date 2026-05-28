@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { QrCode, X, Sparkles, Volume2, VolumeX, AlertTriangle, Terminal as TerminalIcon } from 'lucide-react';
-import { BirthdayPerson, Sender, defaultBirthdayPerson, defaultSenders } from '../types';
+import { BirthdayPerson, Sender, PolaroidImage, defaultBirthdayPerson, defaultSenders, defaultPolaroids } from '../types';
 import TiltCard from './TiltCard';
 import ConfettiCanvas from './ConfettiCanvas';
 import MouseTrail from './MouseTrail';
+import PolaroidPile from './PolaroidPile';
 import { globalAudio } from '../App';
 
 export default function MainBirthdayScreen({ adminOpen, onPlayAudio }: { adminOpen: boolean, onPlayAudio?: (forceRestart?: boolean, timestamp?: number) => void }) {
@@ -16,6 +17,11 @@ export default function MainBirthdayScreen({ adminOpen, onPlayAudio }: { adminOp
   const [senders, setSenders] = useState<Sender[]>(() => {
     const saved = localStorage.getItem('chaarYaarSenders');
     return saved ? JSON.parse(saved) : defaultSenders;
+  });
+
+  const [polaroids, setPolaroids] = useState<PolaroidImage[]>(() => {
+    const saved = localStorage.getItem('chaarYaarPolaroids');
+    return saved ? JSON.parse(saved) : defaultPolaroids;
   });
   
   const [qrOpen, setQrOpen] = useState(false);
@@ -92,14 +98,19 @@ export default function MainBirthdayScreen({ adminOpen, onPlayAudio }: { adminOp
       
       const savedSenders = localStorage.getItem('chaarYaarSenders');
       if (savedSenders) setSenders(JSON.parse(savedSenders));
+
+      const savedPolaroids = localStorage.getItem('chaarYaarPolaroids');
+      if (savedPolaroids) setPolaroids(JSON.parse(savedPolaroids));
     };
     
     window.addEventListener('storage', handleStorage);
     window.addEventListener('friendsUpdated', handleStorage);
+    window.addEventListener('polaroidsUpdated', handleStorage);
     
     return () => {
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('friendsUpdated', handleStorage);
+      window.removeEventListener('polaroidsUpdated', handleStorage);
     };
   }, []);
 
@@ -130,7 +141,7 @@ export default function MainBirthdayScreen({ adminOpen, onPlayAudio }: { adminOp
                  ]
              }}
              transition={{ duration: 0.3, repeat: Infinity, repeatType: "mirror" }}
-             className="relative z-10 flex flex-col items-center justify-center text-center p-8 border border-red-500/50 shadow-[0_0_100px_rgba(239,68,68,0.5)] bg-black/60 backdrop-blur-md rounded-2xl w-[90%] max-w-lg"
+             className="relative z-10 flex flex-col items-center justify-center text-center p-8 border border-red-500/50 shadow-[0_0_100px_rgba(239,68,68,0.5)] bg-black/60 backdrop-blur-md rounded-2xl"
           >
             <AlertTriangle className="w-20 h-20 text-red-500 mb-6 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" />
             <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-yellow-500 uppercase tracking-widest break-all mb-4">
@@ -165,151 +176,153 @@ export default function MainBirthdayScreen({ adminOpen, onPlayAudio }: { adminOp
         <MouseTrail />
         <ConfettiCanvas />
       
-      <div className="w-full max-w-4xl flex flex-col items-center">
-        {/* Main Birthday Spotlight Card */}
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9, y: 30 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.5 }}
-          className="w-full mb-16"
-        >
-          <TiltCard>
-            <div className="glass-panel neon-border flex flex-col items-center justify-center p-8 md:p-14 text-center relative overflow-hidden rounded-2xl w-full">
-              <Sparkles className="absolute top-6 right-6 w-8 h-8 text-cyan-400 opacity-60 animate-pulse" />
-              <Sparkles className="absolute bottom-6 left-6 w-6 h-6 text-fuchsia-400 opacity-60 animate-pulse" />
-              
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1, duration: 1 }}
-                className="inline-block px-5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs md:text-sm text-cyan-300 font-mono tracking-widest uppercase mb-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
-              >
-                ⭐ {person.birthDate} ⭐
-              </motion.div>
-              
-              <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white mb-8 drop-shadow-[0_0_40px_rgba(6,182,212,0.5)]">
-                Happy Birthday,<br/>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-indigo-400 filter drop-shadow-lg">
-                  {person.name}
-                </span>!
-              </h1>
-              
-              <div className="w-full max-w-2xl bg-white/5 border border-white/10 p-6 rounded-xl backdrop-blur-md shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]">
-                <p className="text-lg md:text-xl text-indigo-50 font-medium leading-relaxed">
-                  "{person.roastMessage}"
-                </p>
-              </div>
-            </div>
-          </TiltCard>
-        </motion.div>
-
-        {/* Senders Section */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 1.2 }}
-          className="w-full"
-        >
-          <h3 className="text-center text-xs md:text-sm text-slate-300 mb-8 uppercase tracking-[0.2em] font-semibold flex items-center justify-center gap-3 md:gap-4">
-            <span className="h-px bg-gradient-to-r from-transparent to-slate-500 w-12 md:w-24 block" />
-            Wishes from Chaar Yaar
-            <span className="h-px bg-gradient-to-l from-transparent to-slate-500 w-12 md:w-24 block" />
-          </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {senders.map((sender, idx) => (
-              <motion.div 
-                key={sender.id}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.6, delay: 1.5 + (idx * 0.2) }}
-              >
-                <div className="h-full relative overflow-hidden rounded-2xl glass-panel p-6 hover:bg-white/[0.05] transition-all duration-300 group shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500/0 via-cyan-400/80 to-fuchsia-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
-                  <h4 className="text-lg font-bold text-white tracking-wide mb-4 flex items-center justify-between">
-                    {sender.name}
-                    {sender.special === 'CS' && <span className="text-[10px] bg-green-900/40 text-green-400 px-2 py-1 rounded font-mono border border-green-500/30">ADMIN</span>}
-                  </h4>
-                  
-                  {sender.special === 'CS' ? (
-                    <div className="font-mono text-green-400 bg-black/80 p-4 rounded-lg text-xs w-full shadow-[inset_0_0_15px_rgba(0,0,0,1)] border border-green-500/20 leading-relaxed group-hover:border-green-500/40 transition-colors">
-                      <div className="text-slate-500 mb-1"># root@chaar-yaar:~</div>
-                      <span className="text-slate-500">$</span> {sender.message.split('\n')[0]}
-                      {sender.message.split('\n')[1] && (
-                        <>
-                          <br/>
-                          <span className="text-slate-500">$</span> {sender.message.split('\n')[1]}
-                        </>
-                      )}
-                      <span className="animate-pulse ml-1 bg-green-500 w-1.5 h-3.5 inline-block align-middle" />
-                    </div>
-                  ) : (
-                    <p className="text-slate-300 text-sm leading-relaxed font-medium">
-                      "{sender.message}"
-                    </p>
-                  )}
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 2.5, duration: 1 }}
-          className="mt-16 flex items-center justify-center w-full"
-        >
-          <button 
-            onClick={() => setQrOpen(true)}
-            className="group flex items-center gap-3 px-8 py-4 glass-panel hover:bg-white/10 rounded-full text-white transition-all shadow-[0_0_20px_rgba(6,182,212,0.2)] hover:shadow-[0_0_30px_rgba(225,29,72,0.3)] w-full md:w-auto justify-center"
+        <div className="w-full max-w-4xl flex flex-col items-center">
+          {/* Main Birthday Spotlight Card */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 30 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.5 }}
+            className="w-full mb-16"
           >
-            <QrCode className="w-5 h-5 text-cyan-400 group-hover:text-fuchsia-400 transition-colors" />
-            <span className="tracking-wide text-sm font-bold uppercase">Generate Prank Code</span>
-          </button>
-        </motion.div>
-      </div>
+            <TiltCard>
+              <div className="glass-panel neon-border flex flex-col items-center justify-center p-8 md:p-14 text-center relative overflow-hidden rounded-2xl w-full">
+                <Sparkles className="absolute top-6 right-6 w-8 h-8 text-cyan-400 opacity-60 animate-pulse" />
+                <Sparkles className="absolute bottom-6 left-6 w-6 h-6 text-fuchsia-400 opacity-60 animate-pulse" />
+                
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 1, duration: 1 }}
+                  className="inline-block px-5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs md:text-sm text-cyan-300 font-mono tracking-widest uppercase mb-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]"
+                >
+                  ⭐ {person.birthDate} ⭐
+                </motion.div>
+                
+                <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white mb-8 drop-shadow-[0_0_40px_rgba(6,182,212,0.5)]">
+                  Happy Birthday,<br/>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-indigo-400 filter drop-shadow-lg">
+                    {person.name}
+                  </span>!
+                </h1>
+                
+                <div className="w-full max-w-2xl bg-white/5 border border-white/10 p-6 rounded-xl backdrop-blur-md shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]">
+                  <p className="text-lg md:text-xl text-indigo-50 font-medium leading-relaxed">
+                    "{person.roastMessage}"
+                  </p>
+                </div>
+              </div>
+            </TiltCard>
+          </motion.div>
 
-      <AnimatePresence>
-        {qrOpen && (
+          {/* Senders Section */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 1.2 }}
+            className="w-full"
+          >
+            <h3 className="text-center text-xs md:text-sm text-slate-300 mb-8 uppercase tracking-[0.2em] font-semibold flex items-center justify-center gap-3 md:gap-4">
+              <span className="h-px bg-gradient-to-r from-transparent to-slate-500 w-12 md:w-24 block" />
+              Wishes from Chaar Yaar
+              <span className="h-px bg-gradient-to-l from-transparent to-slate-500 w-12 md:w-24 block" />
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {senders.map((sender, idx) => (
+                <motion.div 
+                  key={sender.id}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.6, delay: 1.5 + (idx * 0.2) }}
+                >
+                  <div className="h-full relative overflow-hidden rounded-2xl glass-panel p-6 hover:bg-white/[0.05] transition-all duration-300 group shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500/0 via-cyan-400/80 to-fuchsia-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    
+                    <h4 className="text-lg font-bold text-white tracking-wide mb-4 flex items-center justify-between">
+                      {sender.name}
+                      {sender.special === 'CS' && <span className="text-[10px] bg-green-900/40 text-green-400 px-2 py-1 rounded font-mono border border-green-500/30">ADMIN</span>}
+                    </h4>
+                    
+                    {sender.special === 'CS' ? (
+                      <div className="font-mono text-green-400 bg-black/80 p-4 rounded-lg text-xs w-full shadow-[inset_0_0_15px_rgba(0,0,0,1)] border border-green-500/20 leading-relaxed group-hover:border-green-500/50 transition-all">
+                        <div className="text-slate-500 mb-1"># root@chaar-yaar:~</div>
+                        <span className="text-slate-500">$</span> {sender.message.split('\n')[0]}
+                        {sender.message.split('\n')[1] && (
+                          <>
+                            <br/>
+                            <span className="text-slate-500">$</span> {sender.message.split('\n')[1]}
+                          </>
+                        )}
+                        <span className="animate-pulse ml-1 bg-green-500 w-1.5 h-3.5 inline-block align-middle" />
+                      </div>
+                    ) : (
+                      <p className="text-slate-300 text-sm leading-relaxed font-medium">
+                        "{sender.message}"
+                      </p>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Polaroid Pile Section */}
+          <PolaroidPile images={polaroids} />
+
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+            transition={{ delay: 2.5, duration: 1 }}
+            className="mt-16 flex items-center justify-center w-full"
           >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="glass-panel neon-border p-8 rounded-3xl max-w-sm w-full relative flex flex-col items-center"
+            <button 
+              onClick={() => setQrOpen(true)}
+              className="group flex items-center gap-3 px-8 py-4 glass-panel hover:bg-white/10 rounded-full text-white transition-all shadow-[0_0_20px_rgba(6,182,212,0.2)] hover:shadow-[0_0_30px_rgba(6,182,212,0.4)]"
             >
-              <button 
-                onClick={() => setQrOpen(false)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors p-2"
-              >
-                <X className="w-6 h-6" />
-              </button>
-              
-              <h2 className="text-2xl font-bold text-white mb-8 tracking-tight">Scan for Surprise</h2>
-              <div className="bg-white p-4 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(window.location.href)}`} 
-                  alt="QR Code to Live URL" 
-                  className="w-56 h-56"
-                />
-              </div>
-              <p className="text-cyan-200/80 mt-8 text-sm text-center leading-relaxed font-medium">
-                Point your camera at this QR code to trigger the Birthday Protocol on mobile.
-              </p>
-            </motion.div>
+              <QrCode className="w-5 h-5 text-cyan-400 group-hover:text-fuchsia-400 transition-colors" />
+              <span className="tracking-wide text-sm font-bold uppercase">Generate Prank Code</span>
+            </button>
           </motion.div>
+        </div>
+
+        <AnimatePresence>
+          {qrOpen && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+            >
+              <motion.div 
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                className="glass-panel neon-border p-8 rounded-3xl max-w-sm w-full relative flex flex-col items-center"
+              >
+                <button 
+                  onClick={() => setQrOpen(false)}
+                  className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors p-2"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+                
+                <h2 className="text-2xl font-bold text-white mb-8 tracking-tight">Scan for Surprise</h2>
+                <div className="bg-white p-4 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(window.location.href)}`} 
+                    alt="QR Code to Live URL" 
+                    className="w-56 h-56"
+                  />
+                </div>
+                <p className="text-cyan-200/80 mt-8 text-sm text-center leading-relaxed font-medium">
+                  Point your camera at this QR code to trigger the Birthday Protocol on mobile.
+                </p>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        </motion.div>
         )}
       </AnimatePresence>
-      </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
+    );
+  }
