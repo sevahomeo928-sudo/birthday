@@ -13,4 +13,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       eventsPerSecond: 10,
     },
   },
+  auth: {
+    persistSession: false,
+  },
 });
+
+// Initialize real-time connection
+supabase.realtime.setAuth(supabaseAnonKey);
