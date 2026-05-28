@@ -6,6 +6,7 @@ import TiltCard from './TiltCard';
 import ConfettiCanvas from './ConfettiCanvas';
 import MouseTrail from './MouseTrail';
 import PolaroidPile from './PolaroidPile';
+import { globalStateManager } from '../lib/globalStateManager';
 import { globalAudio } from '../App';
 
 export default function MainBirthdayScreen({ adminOpen, onPlayAudio }: { adminOpen: boolean, onPlayAudio?: (forceRestart?: boolean, timestamp?: number) => void }) {
@@ -51,6 +52,57 @@ export default function MainBirthdayScreen({ adminOpen, onPlayAudio }: { adminOp
       .catch(() => {});
   }, []);
 
+  // Subscribe to global state changes for cross-tab updates
+  useEffect(() => {
+    const unsubscribePerson = globalStateManager.subscribe('person', (data) => {
+      setPerson(data);
+    });
+    const unsubscribeSenders = globalStateManager.subscribe('senders', (data) => {
+      setSenders(data);
+    });
+    const unsubscribePolaroids = globalStateManager.subscribe('polaroids', (data) => {
+      setPolaroids(data);
+    });
+    const unsubscribeTheme = globalStateManager.subscribe('theme', (data) => {
+      if (data === 'retro') {
+        document.documentElement.setAttribute('data-theme', 'retro');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+      }
+    });
+
+    return () => {
+      unsubscribePerson();
+      unsubscribeSenders();
+      unsubscribePolaroids();
+      unsubscribeTheme();
+    };
+  }, []);
+
+  // Legacy event listeners for backward compatibility
+  useEffect(() => {
+    const handleStorage = () => {
+      const savedPerson = localStorage.getItem('chaarYaarPerson');
+      if (savedPerson) setPerson(JSON.parse(savedPerson));
+      
+      const savedSenders = localStorage.getItem('chaarYaarSenders');
+      if (savedSenders) setSenders(JSON.parse(savedSenders));
+
+      const savedPolaroids = localStorage.getItem('chaarYaarPolaroids');
+      if (savedPolaroids) setPolaroids(JSON.parse(savedPolaroids));
+    };
+    
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('friendsUpdated', handleStorage);
+    window.addEventListener('polaroidsUpdated', handleStorage);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('friendsUpdated', handleStorage);
+      window.removeEventListener('polaroidsUpdated', handleStorage);
+    };
+  }, []);
+
   useEffect(() => {
     if (revealState === 'revealed') return;
 
@@ -91,29 +143,6 @@ export default function MainBirthdayScreen({ adminOpen, onPlayAudio }: { adminOp
     }
   }, [onPlayAudio]);
 
-  useEffect(() => {
-    const handleStorage = () => {
-      const savedPerson = localStorage.getItem('chaarYaarPerson');
-      if (savedPerson) setPerson(JSON.parse(savedPerson));
-      
-      const savedSenders = localStorage.getItem('chaarYaarSenders');
-      if (savedSenders) setSenders(JSON.parse(savedSenders));
-
-      const savedPolaroids = localStorage.getItem('chaarYaarPolaroids');
-      if (savedPolaroids) setPolaroids(JSON.parse(savedPolaroids));
-    };
-    
-    window.addEventListener('storage', handleStorage);
-    window.addEventListener('friendsUpdated', handleStorage);
-    window.addEventListener('polaroidsUpdated', handleStorage);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorage);
-      window.removeEventListener('friendsUpdated', handleStorage);
-      window.removeEventListener('polaroidsUpdated', handleStorage);
-    };
-  }, []);
-
   return (
     <AnimatePresence>
       {revealState !== 'revealed' ? (
@@ -141,7 +170,7 @@ export default function MainBirthdayScreen({ adminOpen, onPlayAudio }: { adminOp
                  ]
              }}
              transition={{ duration: 0.3, repeat: Infinity, repeatType: "mirror" }}
-             className="relative z-10 flex flex-col items-center justify-center text-center p-8 border border-red-500/50 shadow-[0_0_100px_rgba(239,68,68,0.5)] bg-black/60 backdrop-blur-md rounded-2xl"
+             className="relative z-10 flex flex-col items-center justify-center text-center p-8 border border-red-500/50 shadow-[0_0_100px_rgba(239,68,68,0.5)] bg-black/60 backdrop-blur-md rounded-2xl max-w-2xl mx-4"
           >
             <AlertTriangle className="w-20 h-20 text-red-500 mb-6 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" />
             <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-yellow-500 uppercase tracking-widest break-all mb-4">
@@ -193,7 +222,7 @@ export default function MainBirthdayScreen({ adminOpen, onPlayAudio }: { adminOp
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 1, duration: 1 }}
-                  className="inline-block px-5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs md:text-sm text-cyan-300 font-mono tracking-widest uppercase mb-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]"
+                  className="inline-block px-5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs md:text-sm text-cyan-300 font-mono tracking-widest uppercase mb-6 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]"
                 >
                   ⭐ {person.birthDate} ⭐
                 </motion.div>
@@ -236,7 +265,7 @@ export default function MainBirthdayScreen({ adminOpen, onPlayAudio }: { adminOp
                   transition={{ duration: 0.6, delay: 1.5 + (idx * 0.2) }}
                 >
                   <div className="h-full relative overflow-hidden rounded-2xl glass-panel p-6 hover:bg-white/[0.05] transition-all duration-300 group shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500/0 via-cyan-400/80 to-fuchsia-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500/0 via-cyan-400/80 to-fuchsia-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     
                     <h4 className="text-lg font-bold text-white tracking-wide mb-4 flex items-center justify-between">
                       {sender.name}
@@ -244,7 +273,7 @@ export default function MainBirthdayScreen({ adminOpen, onPlayAudio }: { adminOp
                     </h4>
                     
                     {sender.special === 'CS' ? (
-                      <div className="font-mono text-green-400 bg-black/80 p-4 rounded-lg text-xs w-full shadow-[inset_0_0_15px_rgba(0,0,0,1)] border border-green-500/20 leading-relaxed group-hover:border-green-500/50 transition-all">
+                      <div className="font-mono text-green-400 bg-black/80 p-4 rounded-lg text-xs w-full shadow-[inset_0_0_15px_rgba(0,0,0,1)] border border-green-500/20 leading-relaxed group-hover:text-green-300 transition-colors">
                         <div className="text-slate-500 mb-1"># root@chaar-yaar:~</div>
                         <span className="text-slate-500">$</span> {sender.message.split('\n')[0]}
                         {sender.message.split('\n')[1] && (

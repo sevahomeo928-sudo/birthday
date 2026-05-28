@@ -52,7 +52,7 @@ function PolaroidCard({
   const zIndexVal = isSelected ? 100 : index;
   const opacityVal = visualIndex > 4 ? 0 : 1;
 
-  // React to the top card being dragged
+  // React to the top card being dragged with smoother transitions
   const innerScale = useTransform(dragProgress, (p: number) => {
     if (isTop || isSelected) return 1;
     const base = Math.max(0.8, 1 - visualIndex * 0.05);
@@ -65,12 +65,12 @@ function PolaroidCard({
     return -p * 15;
   });
 
-  // Subtle drift animation for the pile effect
+  // Subtle drift animation for the pile effect - smoother with consistent easing
   const driftAnimation = (!isSelected && !isTop && hasEntered) ? {
-    x: [0, (Math.random() - 0.5) * 6, 0],
-    y: [0, (Math.random() - 0.5) * 6, 0],
+    x: [0, (Math.random() - 0.5) * 4, 0],
+    y: [0, (Math.random() - 0.5) * 4, 0],
     transition: {
-      duration: 3 + Math.random() * 2,
+      duration: 4 + Math.random() * 2,
       repeat: Infinity,
       repeatType: "reverse" as const,
       ease: "easeInOut"
@@ -106,7 +106,8 @@ function PolaroidCard({
         duration: isSelected ? 0.4 : 0.8, 
         delay: (!hasEntered && isInView && !isSelected) ? 0.2 + index * 0.15 : 0, 
         type: 'spring', 
-        bounce: 0.3 
+        bounce: 0.3,
+        restDelta: 0.001
       }}
       style={{
         position: 'absolute',
@@ -117,7 +118,8 @@ function PolaroidCard({
       <motion.div
         drag={isTop && !isSelected}
         dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-        dragElastic={0.8}
+        dragElastic={0.2}
+        dragMomentum={true}
         onDrag={handleDrag}
         whileDrag={{ 
           scale: 1.05, 
@@ -134,7 +136,7 @@ function PolaroidCard({
         }}
         animate={driftAnimation}
         style={(!isTop && !isSelected) ? { scale: innerScale, y: innerY } : {}}
-        className={`bg-white p-2 pb-6 md:p-3 md:pb-8 shadow-xl transition-shadow rounded-sm border border-gray-200 w-48 h-56 md:w-64 md:h-72 flex flex-col items-center justify-between touch-none ${isSelected ? 'shadow-2xl ring-4 ring-white/10 cursor-zoom-out' : isTop ? 'hover:shadow-2xl cursor-grab' : 'cursor-default'}`}
+        className={`bg-white p-2 pb-6 md:p-3 md:pb-8 shadow-xl transition-shadow rounded-sm border border-gray-200 w-48 h-56 md:w-64 md:h-72 flex flex-col items-center justify-between touch-none cursor-grab active:cursor-grabbing`}
       >
         <div 
           className="w-full h-full bg-slate-200 mb-2 border border-black/10 overflow-hidden bg-cover bg-center pointer-events-none"
@@ -188,8 +190,12 @@ export default function PolaroidPile({ images }: { images: PolaroidImage[] }) {
   const handleDragEnd = (event: any, info: PanInfo, imageId: string) => {
     const threshold = 100;
     
-    // Animate the cards underneath back to the resting state if not shuffled
-    animate(dragProgress, 0, { type: "spring", bounce: 0.3 });
+    // Animate the cards underneath back to the resting state with smooth spring animation
+    animate(dragProgress, 0, { 
+      type: "spring", 
+      bounce: 0.3,
+      restDelta: 0.001
+    });
 
     // If dragged roughly past threshold in any direction, shuffle!
     if (Math.abs(info.offset.x) > threshold || Math.abs(info.offset.y) > threshold) {

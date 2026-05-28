@@ -2,12 +2,16 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Lock, Save, LogOut, Plus, Trash2 } from 'lucide-react';
 import { BirthdayPerson, Sender, PolaroidImage, defaultBirthdayPerson, defaultSenders, defaultPolaroids } from '../types';
+import { globalStateManager } from '../lib/globalStateManager';
+
+type SaveStatus = 'idle' | 'saving' | 'saved';
 
 export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   
   const [person, setPerson] = useState<BirthdayPerson>(defaultBirthdayPerson);
   const [senders, setSenders] = useState<Sender[]>(defaultSenders);
@@ -52,15 +56,35 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
     localStorage.removeItem('chaarYaarAdminAuth');
   };
 
-  const handleSave = () => {
-    localStorage.setItem('chaarYaarPerson', JSON.stringify(person));
-    localStorage.setItem('chaarYaarSenders', JSON.stringify(senders));
-    localStorage.setItem('chaarYaarTheme', theme);
-    localStorage.setItem('chaarYaarPolaroids', JSON.stringify(polaroids));
-    window.dispatchEvent(new Event('friendsUpdated'));
-    window.dispatchEvent(new Event('themeUpdated'));
-    window.dispatchEvent(new Event('polaroidsUpdated'));
-    onClose();
+  const handleSave = async () => {
+    setSaveStatus('saving');
+    
+    try {
+      // Broadcast all state changes to other tabs using global state manager
+      globalStateManager.broadcast('person', person);
+      globalStateManager.broadcast('senders', senders);
+      globalStateManager.broadcast('theme', theme);
+      globalStateManager.broadcast('polaroids', polaroids);
+      
+      // Also dispatch custom events for backward compatibility
+      window.dispatchEvent(new Event('friendsUpdated'));
+      window.dispatchEvent(new Event('themeUpdated'));
+      window.dispatchEvent(new Event('polaroidsUpdated'));
+      
+      // Simulate save completion
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      setSaveStatus('saved');
+      
+      // Reset status and close panel after delay
+      setTimeout(() => {
+        setSaveStatus('idle');
+        onClose();
+      }, 1500);
+    } catch (err) {
+      console.error('Save failed:', err);
+      setSaveStatus('idle');
+    }
   };
 
   const updateSender = (id: string, field: keyof Sender, value: string) => {
@@ -159,7 +183,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                       type="text" 
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-md px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-md px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                       placeholder="Enter admin ID"
                     />
                   </div>
@@ -169,7 +193,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                       type="password" 
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-md px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-md px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                       placeholder="••••••••"
                     />
                   </div>
@@ -200,12 +224,12 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                           localStorage.removeItem('chaarYaarSequenceDone');
                           window.location.reload();
                         }}
-                        className="text-sm font-bold text-amber-400 hover:text-amber-300 flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-2 rounded-lg transition-colors border border-amber-500/20 whitespace-nowrap"
+                        className="text-sm font-bold text-amber-400 hover:text-amber-300 flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-2 rounded-lg transition-colors border border-amber-500/20"
                         title="Clear data to replay the intro/candle sequence"
                       >
                         <Trash2 className="w-4 h-4" /> Reset Intro
                       </button>
-                      <button onClick={handleLogout} className="text-sm font-bold text-rose-400 hover:text-rose-300 flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 px-4 py-2 rounded-lg transition-colors border border-rose-500/20 whitespace-nowrap">
+                      <button onClick={handleLogout} className="text-sm font-bold text-rose-400 hover:text-rose-300 flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 px-4 py-2 rounded-lg transition-colors border border-rose-500/20">
                         <LogOut className="w-4 h-4" /> Lock Terminal
                       </button>
                     </div>
@@ -289,7 +313,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                               value={sender.message}
                               onChange={(e) => updateSender(sender.id, 'message', e.target.value)}
                               rows={sender.special === 'CS' ? 3 : 2}
-                              className={`w-full bg-slate-950 border border-slate-700/80 rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors leading-relaxed ${sender.special === 'CS' ? 'font-mono text-green-400' : ''}`}
+                              className="w-full bg-slate-950 border border-slate-700/80 rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors leading-relaxed"
                             />
                           </div>
                         </div>
@@ -370,9 +394,29 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                   <div className="flex justify-end pt-6 border-t border-slate-800/80 sticky bottom-0 bg-[#0b1120] pb-2 z-10">
                     <button 
                       onClick={handleSave}
-                      className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3 rounded-lg transition-colors shadow-[0_0_20px_rgba(5,150,105,0.2)] hover:shadow-[0_0_25px_rgba(5,150,105,0.4)] font-bold tracking-wide"
+                      disabled={saveStatus !== 'idle'}
+                      className={`flex items-center gap-2 px-8 py-3 rounded-lg transition-all font-semibold ${
+                        saveStatus === 'idle' 
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_20px_rgba(5,150,105,0.2)]' 
+                          : saveStatus === 'saving'
+                          ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.2)]'
+                          : 'bg-green-600 text-white shadow-[0_0_20px_rgba(34,197,94,0.2)]'
+                      }`}
                     >
-                      <Save className="w-5 h-5" /> Deploy Saved Data
+                      <Save className="w-5 h-5" />
+                      <span>
+                        {saveStatus === 'idle' && 'Deploy Changes'}
+                        {saveStatus === 'saving' && (
+                          <span className="flex items-center gap-1">
+                            Saving<span className="inline-flex gap-0.5">
+                              <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 0.8, repeat: Infinity }} className="inline-block">•</motion.span>
+                              <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 0.8, repeat: Infinity, delay: 0.2 }} className="inline-block">•</motion.span>
+                              <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 0.8, repeat: Infinity, delay: 0.4 }} className="inline-block">•</motion.span>
+                            </span>
+                          </span>
+                        )}
+                        {saveStatus === 'saved' && 'Saved!'}
+                      </span>
                     </button>
                   </div>
                 </div>
