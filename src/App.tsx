@@ -17,7 +17,10 @@ globalAudio.addEventListener('error', () => {
 });
 
 export default function App() {
-  const [showMain, setShowMain] = useState(() => window.location.pathname === '/admin');
+  const [showMain, setShowMain] = useState(() => {
+    if (window.location.pathname === '/admin' || window.location.hash === '#admin') return true;
+    return localStorage.getItem('chaarYaarSequenceDone') === 'true';
+  });
   const [adminOpen, setAdminOpen] = useState(() => window.location.pathname === '/admin');
   const [adminTaps, setAdminTaps] = useState(0);
 
@@ -44,25 +47,13 @@ export default function App() {
     checkAdminRoute();
     window.addEventListener('popstate', checkAdminRoute);
     
-    // Initialize theme — fetch from API, fall back to localStorage
-    fetch('/api/config')
-      .then(r => r.json())
-      .then(data => {
-        if (data.theme === 'retro') {
-          document.documentElement.setAttribute('data-theme', 'retro');
-        } else {
-          document.documentElement.removeAttribute('data-theme');
-        }
-        localStorage.setItem('chaarYaarTheme', data.theme);
-      })
-      .catch(() => {
-        const savedTheme = localStorage.getItem('chaarYaarTheme');
-        if (savedTheme === 'retro') {
-          document.documentElement.setAttribute('data-theme', 'retro');
-        } else {
-          document.documentElement.removeAttribute('data-theme');
-        }
-      });
+    // Initialize theme from storage
+    const savedTheme = localStorage.getItem('chaarYaarTheme');
+    if (savedTheme === 'retro') {
+      document.documentElement.setAttribute('data-theme', 'retro');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
     
     const handleStorage = () => {
       const theme = localStorage.getItem('chaarYaarTheme');
@@ -91,10 +82,15 @@ export default function App() {
     }
   };
 
+  const handleSequenceComplete = () => {
+    localStorage.setItem('chaarYaarSequenceDone', 'true');
+    setShowMain(true);
+  };
+
   return (
     <div className="min-h-screen aurora-bg font-sans text-slate-100 overflow-x-hidden relative selection:bg-cyan-500/30">
       {!showMain ? (
-        <TrollSequence onComplete={() => setShowMain(true)} onPlayAudio={playAudio} />
+        <TrollSequence onComplete={handleSequenceComplete} onPlayAudio={playAudio} />
       ) : (
         <>
           <MainBirthdayScreen adminOpen={adminOpen} onPlayAudio={playAudio} />
