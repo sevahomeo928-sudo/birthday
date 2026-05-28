@@ -1,42 +1,37 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Lock, Save, LogOut } from 'lucide-react';
-import { BirthdayPerson, Sender, defaultBirthdayPerson, defaultSenders } from '../types';
+import { X, Lock, Save, LogOut, Plus, Trash2 } from 'lucide-react';
+import { BirthdayPerson, Sender, PolaroidImage, defaultBirthdayPerson, defaultSenders, defaultPolaroids } from '../types';
 
 export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-
+  
   const [person, setPerson] = useState<BirthdayPerson>(defaultBirthdayPerson);
   const [senders, setSenders] = useState<Sender[]>(defaultSenders);
   const [theme, setTheme] = useState<'classic' | 'retro'>('classic');
+  const [polaroids, setPolaroids] = useState<PolaroidImage[]>(defaultPolaroids);
 
   useEffect(() => {
     if (localStorage.getItem('chaarYaarAdminAuth') === 'true') {
       setIsAuthenticated(true);
     }
+    
+    const savedPerson = localStorage.getItem('chaarYaarPerson');
+    if (savedPerson) setPerson(JSON.parse(savedPerson));
+    
+    const savedSenders = localStorage.getItem('chaarYaarSenders');
+    if (savedSenders) setSenders(JSON.parse(savedSenders));
+    
+    const savedTheme = localStorage.getItem('chaarYaarTheme');
+    if (savedTheme === 'retro' || savedTheme === 'classic') {
+      setTheme(savedTheme);
+    }
 
-    fetch('/api/config')
-      .then(r => r.json())
-      .then(data => {
-        setPerson(data.person);
-        setSenders(data.senders);
-        setTheme(data.theme === 'retro' ? 'retro' : 'classic');
-        localStorage.setItem('chaarYaarPerson', JSON.stringify(data.person));
-        localStorage.setItem('chaarYaarSenders', JSON.stringify(data.senders));
-        localStorage.setItem('chaarYaarTheme', data.theme);
-      })
-      .catch(() => {
-        const savedPerson = localStorage.getItem('chaarYaarPerson');
-        if (savedPerson) setPerson(JSON.parse(savedPerson));
-        const savedSenders = localStorage.getItem('chaarYaarSenders');
-        if (savedSenders) setSenders(JSON.parse(savedSenders));
-        const savedTheme = localStorage.getItem('chaarYaarTheme');
-        if (savedTheme === 'retro' || savedTheme === 'classic') setTheme(savedTheme);
-      });
+    const savedPolaroids = localStorage.getItem('chaarYaarPolaroids');
+    if (savedPolaroids) setPolaroids(JSON.parse(savedPolaroids));
   }, [isOpen]);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -57,28 +52,73 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
     localStorage.removeItem('chaarYaarAdminAuth');
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await fetch('/api/config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ person, senders, theme }),
-      });
-    } catch {
-      // fall through to local update even if server fails
-    }
+  const handleSave = () => {
     localStorage.setItem('chaarYaarPerson', JSON.stringify(person));
     localStorage.setItem('chaarYaarSenders', JSON.stringify(senders));
     localStorage.setItem('chaarYaarTheme', theme);
+    localStorage.setItem('chaarYaarPolaroids', JSON.stringify(polaroids));
     window.dispatchEvent(new Event('friendsUpdated'));
     window.dispatchEvent(new Event('themeUpdated'));
-    setSaving(false);
+    window.dispatchEvent(new Event('polaroidsUpdated'));
     onClose();
   };
 
   const updateSender = (id: string, field: keyof Sender, value: string) => {
     setSenders(senders.map(s => s.id === id ? { ...s, [field]: value } : s));
+  };
+
+  const updatePolaroid = (id: string, field: keyof PolaroidImage, value: string) => {
+    setPolaroids(polaroids.map(p => p.id === id ? { ...p, [field]: value } : p));
+  };
+
+  const addPolaroid = () => {
+    const newId = `p${Date.now()}`;
+    setPolaroids([...polaroids, { id: newId, url: '', caption: 'New Memory' }]);
+  };
+
+  const removePolaroid = (id: string) => {
+    setPolaroids(polaroids.filter(p => p.id !== id));
+  };
+
+  const handleImageUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 600;
+        const MAX_HEIGHT = 600;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.6); // Compress
+        updatePolaroid(id, 'url', dataUrl);
+      };
+      if (event.target?.result) {
+        img.src = event.target.result as string;
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -145,7 +185,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
               ) : (
                 <div className="space-y-10">
                   <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/10 drop-shadow flex-wrap gap-4">
-                    <p className="text-cyan-100/80 text-sm font-medium">Configure deployed parameters below. Changes are saved globally for all visitors.</p>
+                    <p className="text-cyan-100/80 text-sm font-medium">Configure deployed parameters below. Changes are cached locally.</p>
                     <div className="flex items-center gap-4">
                       <select 
                         value={theme}
@@ -155,6 +195,16 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                         <option value="classic">Theme: Classic Cyan</option>
                         <option value="retro">Theme: Retro Green</option>
                       </select>
+                      <button 
+                        onClick={() => {
+                          localStorage.removeItem('chaarYaarSequenceDone');
+                          window.location.reload();
+                        }}
+                        className="text-sm font-bold text-amber-400 hover:text-amber-300 flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-2 rounded-lg transition-colors border border-amber-500/20 whitespace-nowrap"
+                        title="Clear data to replay the intro/candle sequence"
+                      >
+                        <Trash2 className="w-4 h-4" /> Reset Intro
+                      </button>
                       <button onClick={handleLogout} className="text-sm font-bold text-rose-400 hover:text-rose-300 flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 px-4 py-2 rounded-lg transition-colors border border-rose-500/20 whitespace-nowrap">
                         <LogOut className="w-4 h-4" /> Lock Terminal
                       </button>
@@ -246,15 +296,83 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                       ))}
                     </div>
                   </div>
+
+                  {/* Polaroids Configuration */}
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                        Memory Photos (Polaroids)
+                      </h3>
+                      <button 
+                        onClick={addPolaroid}
+                        className="flex items-center gap-1 text-xs bg-cyan-500/20 text-cyan-400 px-3 py-1.5 rounded hover:bg-cyan-500/30 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" /> Add Photo
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+                      {polaroids.map((polaroid) => (
+                        <div key={polaroid.id} className="bg-slate-900/30 p-4 rounded-xl border border-slate-800/60 flex flex-col gap-3 relative group">
+                          <button 
+                            onClick={() => removePolaroid(polaroid.id)}
+                            className="absolute top-2 right-2 p-1.5 bg-rose-500/20 text-rose-400 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-500/40"
+                            title="Delete Photo"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          
+                          <div className="aspect-square w-full bg-slate-950 rounded-lg overflow-hidden border border-slate-800 flex items-center justify-center">
+                            {polaroid.url ? (
+                              <img src={polaroid.url} alt={polaroid.caption} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-slate-600 text-xs text-center px-4">No Image URL Provided</span>
+                            )}
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <label className="text-xs text-slate-500">Image URL</label>
+                              <label className="text-xs text-indigo-400 cursor-pointer hover:text-indigo-300 font-medium">
+                                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(polaroid.id, e)} />
+                                Upload Photo 📤
+                              </label>
+                            </div>
+                            <input 
+                              type="text"
+                              value={polaroid.url}
+                              onChange={(e) => updatePolaroid(polaroid.id, 'url', e.target.value)}
+                              placeholder="https://... OR tap Upload"
+                              className="w-full bg-slate-950 border border-slate-700/80 rounded-md px-3 py-2 text-white text-xs focus:outline-none focus:border-indigo-500 transition-colors"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs text-slate-500">Caption</label>
+                            <input 
+                              type="text"
+                              value={polaroid.caption}
+                              onChange={(e) => updatePolaroid(polaroid.id, 'caption', e.target.value)}
+                              placeholder="Memories..."
+                              className="w-full bg-slate-950 border border-slate-700/80 rounded-md px-3 py-2 text-white text-xs focus:outline-none focus:border-indigo-500 transition-colors"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      {polaroids.length === 0 && (
+                        <div className="col-span-full py-8 text-center text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                          No photos added yet. Add a few to show the interactive polaroid pile!
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   
                   {/* Footer Actions */}
                   <div className="flex justify-end pt-6 border-t border-slate-800/80 sticky bottom-0 bg-[#0b1120] pb-2 z-10">
-                    <button
+                    <button 
                       onClick={handleSave}
-                      disabled={saving}
-                      className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white px-8 py-3 rounded-lg transition-colors shadow-[0_0_20px_rgba(5,150,105,0.2)] hover:shadow-[0_0_25px_rgba(5,150,105,0.4)] font-bold tracking-wide"
+                      className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3 rounded-lg transition-colors shadow-[0_0_20px_rgba(5,150,105,0.2)] hover:shadow-[0_0_25px_rgba(5,150,105,0.4)] font-bold tracking-wide"
                     >
-                      <Save className="w-5 h-5" /> {saving ? 'Saving...' : 'Deploy Saved Data'}
+                      <Save className="w-5 h-5" /> Deploy Saved Data
                     </button>
                   </div>
                 </div>
