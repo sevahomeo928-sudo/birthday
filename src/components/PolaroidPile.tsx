@@ -65,12 +65,12 @@ function PolaroidCard({
     return -p * 15;
   });
 
-  // Subtle drift animation for the pile effect - smoother
+  // Subtle drift animation for the pile effect
   const driftAnimation = (!isSelected && !isTop && hasEntered) ? {
-    x: [0, (Math.random() - 0.5) * 4, 0],
-    y: [0, (Math.random() - 0.5) * 4, 0],
+    x: [0, (Math.random() - 0.5) * 6, 0],
+    y: [0, (Math.random() - 0.5) * 6, 0],
     transition: {
-      duration: 4 + Math.random() * 2,
+      duration: 3 + Math.random() * 2,
       repeat: Infinity,
       repeatType: "reverse" as const,
       ease: "easeInOut"
@@ -103,12 +103,10 @@ function PolaroidCard({
         }
       }
       transition={{ 
-        duration: isSelected ? 0.4 : 0.85, 
+        duration: isSelected ? 0.4 : 0.8, 
         delay: (!hasEntered && isInView && !isSelected) ? 0.2 + index * 0.15 : 0, 
         type: 'spring', 
-        bounce: 0.3,
-        stiffness: 100,
-        damping: 12
+        bounce: 0.3 
       }}
       style={{
         position: 'absolute',
@@ -136,7 +134,7 @@ function PolaroidCard({
         }}
         animate={driftAnimation}
         style={(!isTop && !isSelected) ? { scale: innerScale, y: innerY } : {}}
-        className="bg-white p-2 pb-6 md:p-3 md:pb-8 shadow-xl transition-shadow rounded-sm border border-gray-200 w-48 h-56 md:w-64 md:h-72 flex flex-col items-center justify-between touch-none cursor-grab active:cursor-grabbing"
+        className={`bg-white p-2 pb-6 md:p-3 md:pb-8 shadow-xl transition-shadow rounded-sm border border-gray-200 w-48 h-56 md:w-64 md:h-72 flex flex-col items-center justify-between touch-none ${isSelected ? 'shadow-2xl ring-4 ring-white/10 cursor-zoom-out' : isTop ? 'hover:shadow-2xl cursor-grab' : 'cursor-default'}`}
       >
         <div 
           className="w-full h-full bg-slate-200 mb-2 border border-black/10 overflow-hidden bg-cover bg-center pointer-events-none"
@@ -171,7 +169,7 @@ export default function PolaroidPile({ images }: { images: PolaroidImage[] }) {
     if (images && images.length > 0 && stack.length === 0) {
       setStack([...images].reverse());
     }
-  }, [images, stack.length]);
+  }, [images]);
 
   useEffect(() => {
     if (isInView && !hasEntered) {

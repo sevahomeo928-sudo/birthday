@@ -3,14 +3,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Lock, Save, LogOut, Plus, Trash2 } from 'lucide-react';
 import { BirthdayPerson, Sender, PolaroidImage, defaultBirthdayPerson, defaultSenders, defaultPolaroids } from '../types';
 
-type SaveStatus = 'idle' | 'saving' | 'saved';
-
 export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   
   const [person, setPerson] = useState<BirthdayPerson>(defaultBirthdayPerson);
   const [senders, setSenders] = useState<Sender[]>(defaultSenders);
@@ -55,32 +52,15 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
     localStorage.removeItem('chaarYaarAdminAuth');
   };
 
-  const handleSave = async () => {
-    setSaveStatus('saving');
-    
-    try {
-      // Save all data to localStorage
-      localStorage.setItem('chaarYaarPerson', JSON.stringify(person));
-      localStorage.setItem('chaarYaarSenders', JSON.stringify(senders));
-      localStorage.setItem('chaarYaarTheme', theme);
-      localStorage.setItem('chaarYaarPolaroids', JSON.stringify(polaroids));
-      
-      // Dispatch events to notify all components
-      window.dispatchEvent(new Event('friendsUpdated'));
-      window.dispatchEvent(new Event('themeUpdated'));
-      window.dispatchEvent(new Event('polaroidsUpdated'));
-      
-      setSaveStatus('saved');
-      
-      // Reset status and close panel after delay
-      setTimeout(() => {
-        setSaveStatus('idle');
-        onClose();
-      }, 1500);
-    } catch (err) {
-      console.error('Save failed:', err);
-      setSaveStatus('idle');
-    }
+  const handleSave = () => {
+    localStorage.setItem('chaarYaarPerson', JSON.stringify(person));
+    localStorage.setItem('chaarYaarSenders', JSON.stringify(senders));
+    localStorage.setItem('chaarYaarTheme', theme);
+    localStorage.setItem('chaarYaarPolaroids', JSON.stringify(polaroids));
+    window.dispatchEvent(new Event('friendsUpdated'));
+    window.dispatchEvent(new Event('themeUpdated'));
+    window.dispatchEvent(new Event('polaroidsUpdated'));
+    onClose();
   };
 
   const updateSender = (id: string, field: keyof Sender, value: string) => {
@@ -179,7 +159,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                       type="text" 
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-md px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transiti[...]"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-md px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                       placeholder="Enter admin ID"
                     />
                   </div>
@@ -189,7 +169,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                       type="password" 
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-md px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transiti[...]"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-md px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                       placeholder="••••••••"
                     />
                   </div>
@@ -220,12 +200,12 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                           localStorage.removeItem('chaarYaarSequenceDone');
                           window.location.reload();
                         }}
-                        className="text-sm font-bold text-amber-400 hover:text-amber-300 flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-2 rounded-lg transition-colors borde[...]"
+                        className="text-sm font-bold text-amber-400 hover:text-amber-300 flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-2 rounded-lg transition-colors border border-amber-500/20 whitespace-nowrap"
                         title="Clear data to replay the intro/candle sequence"
                       >
                         <Trash2 className="w-4 h-4" /> Reset Intro
                       </button>
-                      <button onClick={handleLogout} className="text-sm font-bold text-rose-400 hover:text-rose-300 flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 px-4 py-2 rounded-l[...]"
+                      <button onClick={handleLogout} className="text-sm font-bold text-rose-400 hover:text-rose-300 flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 px-4 py-2 rounded-lg transition-colors border border-rose-500/20 whitespace-nowrap">
                         <LogOut className="w-4 h-4" /> Lock Terminal
                       </button>
                     </div>
@@ -263,7 +243,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                           value={person.roastMessage}
                           onChange={(e) => setPerson({...person, roastMessage: e.target.value})}
                           rows={3}
-                          className="w-full bg-slate-950 border border-slate-700/80 rounded-md px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors leading-re[...]"
+                          className="w-full bg-slate-950 border border-slate-700/80 rounded-md px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors leading-relaxed"
                           placeholder="Type a funny roast message..."
                         />
                       </div>
@@ -309,7 +289,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                               value={sender.message}
                               onChange={(e) => updateSender(sender.id, 'message', e.target.value)}
                               rows={sender.special === 'CS' ? 3 : 2}
-                              className="w-full bg-slate-950 border border-slate-700/80 rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors leadi[...]"
+                              className={`w-full bg-slate-950 border border-slate-700/80 rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors leading-relaxed ${sender.special === 'CS' ? 'font-mono text-green-400' : ''}`}
                             />
                           </div>
                         </div>
@@ -386,42 +366,14 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                     </div>
                   </div>
                   
-                  {/* Footer Actions with Save Animation */}
+                  {/* Footer Actions */}
                   <div className="flex justify-end pt-6 border-t border-slate-800/80 sticky bottom-0 bg-[#0b1120] pb-2 z-10">
-                    <motion.button 
+                    <button 
                       onClick={handleSave}
-                      disabled={saveStatus === 'saving'}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className={`flex items-center gap-2 ${
-                        saveStatus === 'saving' 
-                          ? 'bg-slate-600 cursor-not-allowed opacity-75' 
-                          : 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_20px_rgba(5,150,105,0.2)]'
-                      } text-white px-8 py-3 rounded-lg transition-colors font-semibold`}
+                      className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3 rounded-lg transition-colors shadow-[0_0_20px_rgba(5,150,105,0.2)] hover:shadow-[0_0_25px_rgba(5,150,105,0.4)] font-bold tracking-wide"
                     >
-                      {saveStatus === 'saving' && (
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                        </motion.div>
-                      )}
-                      {saveStatus === 'saved' && (
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ type: 'spring', stiffness: 200 }}
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </motion.div>
-                      )}
-                      <Save className="w-5 h-5" /> {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Deploy Saved Data'}
-                    </motion.button>
+                      <Save className="w-5 h-5" /> Deploy Saved Data
+                    </button>
                   </div>
                 </div>
               )}
