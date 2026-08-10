@@ -6,6 +6,7 @@ import TiltCard from './TiltCard';
 import ConfettiCanvas from './ConfettiCanvas';
 import MouseTrail from './MouseTrail';
 import PolaroidPile from './PolaroidPile';
+import ChaarYaarCourt from './ChaarYaarCourt';
 import { globalStateManager } from '../lib/globalStateManager';
 import { globalAudio } from '../App';
 
@@ -296,6 +297,9 @@ export default function MainBirthdayScreen({ adminOpen, onPlayAudio }: { adminOp
 
           {/* Polaroid Pile Section */}
           <PolaroidPile images={polaroids} />
+
+          {/* Chaar Yaar Adalat */}
+          <ChaarYaarCourt birthdayName={person.name} />
 
           <motion.div 
             initial={{ opacity: 0 }}
