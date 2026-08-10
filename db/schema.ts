@@ -5,5 +5,7 @@ export const siteConfig = pgTable("site_config", {
   person: text().notNull(),
   senders: text().notNull(),
   theme: text().notNull().default("classic"),
+  polaroids: text().notNull().default("[]"),
+  court: text().notNull().default("{}"),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
