@@ -7,7 +7,7 @@
 import { supabase } from './supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
-type StateType = 'person' | 'senders' | 'theme' | 'polaroids';
+type StateType = 'person' | 'senders' | 'theme' | 'polaroids' | 'court';
 type StateListener = (data: any) => void;
 
 interface StateUpdate {
