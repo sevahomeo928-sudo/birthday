@@ -7,7 +7,7 @@
 import { realtimeSyncManager } from './realtimeSync';
 
 type StateListener = (data: any) => void;
-type StateType = 'person' | 'senders' | 'theme' | 'polaroids';
+type StateType = 'person' | 'senders' | 'theme' | 'polaroids' | 'court';
 
 interface StateUpdate {
   type: StateType;
@@ -27,7 +27,7 @@ class GlobalStateManager {
 
   private setupRealtimeSync() {
     // Subscribe to real-time updates from Supabase
-    const types: StateType[] = ['person', 'senders', 'theme', 'polaroids'];
+    const types: StateType[] = ['person', 'senders', 'theme', 'polaroids', 'court'];
     types.forEach(type => {
       realtimeSyncManager.subscribe(type, (data) => {
         this.notifyListeners(type, data);
@@ -57,7 +57,8 @@ class GlobalStateManager {
       'chaarYaarPerson': 'person',
       'chaarYaarSenders': 'senders',
       'chaarYaarTheme': 'theme',
-      'chaarYaarPolaroids': 'polaroids'
+      'chaarYaarPolaroids': 'polaroids',
+      'chaarYaarCourt': 'court'
     };
     return mapping[key] || null;
   }
@@ -67,7 +68,8 @@ class GlobalStateManager {
       'person': 'chaarYaarPerson',
       'senders': 'chaarYaarSenders',
       'theme': 'chaarYaarTheme',
-      'polaroids': 'chaarYaarPolaroids'
+      'polaroids': 'chaarYaarPolaroids',
+      'court': 'chaarYaarCourt'
     };
     return mapping[type];
   }
@@ -140,7 +142,7 @@ class GlobalStateManager {
    * Broadcast all current state to other clients
    */
   async broadcastAll(): Promise<void> {
-    const types: StateType[] = ['person', 'senders', 'theme', 'polaroids'];
+    const types: StateType[] = ['person', 'senders', 'theme', 'polaroids', 'court'];
     
     try {
       await Promise.all(
