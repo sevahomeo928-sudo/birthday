@@ -20,7 +20,6 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
   const [polaroids, setPolaroids] = useState<PolaroidImage[]>(defaultPolaroids);
   const [charges, setCharges] = useState<Charge[]>(defaultCharges);
   const [courtMembers, setCourtMembers] = useState<CourtMember[]>(defaultCourtMembers);
-  const [activeSection, setActiveSection] = useState<'person'|'senders'|'polaroids'|'court'>('person');
 
   useEffect(() => {
     if (localStorage.getItem('chaarYaarAdminAuth') === 'true') {
@@ -43,21 +42,20 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
 
     const savedCourt = localStorage.getItem('chaarYaarCourt');
     if (savedCourt) {
-      const courtData = JSON.parse(savedCourt);
-      if (courtData.charges) setCharges(courtData.charges);
-      if (courtData.members) setCourtMembers(courtData.members);
+      try {
+        const d = JSON.parse(savedCourt);
+        if (d.charges?.length) setCharges(d.charges);
+        if (d.members?.length) setCourtMembers(d.members);
+      } catch (_) {}
     }
   }, [isOpen]);
 
   // Monitor real-time connection status
   useEffect(() => {
-    const checkConnection = () => {
-      setIsConnected(globalStateManager.isRealtimeConnected());
-    };
-    
-    checkConnection();
-    const interval = setInterval(checkConnection, 1000);
-    return () => clearInterval(interval);
+    const unsub = globalStateManager.onConnectionChange((connected) => {
+      setIsConnected(connected);
+    });
+    return unsub;
   }, []);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -82,40 +80,42 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
     setSaveStatus('saving');
     
     try {
-      // Save to localStorage first
+      const config = { person, senders, theme, polaroids, court: { charges, members: courtMembers } };
+
+      // 1. Save to localStorage immediately (instant local update)
       localStorage.setItem('chaarYaarPerson', JSON.stringify(person));
       localStorage.setItem('chaarYaarSenders', JSON.stringify(senders));
       localStorage.setItem('chaarYaarTheme', theme);
       localStorage.setItem('chaarYaarPolaroids', JSON.stringify(polaroids));
-      const courtData = { charges, members: courtMembers };
-      localStorage.setItem('chaarYaarCourt', JSON.stringify(courtData));
+      localStorage.setItem('chaarYaarCourt', JSON.stringify({ charges, members: courtMembers }));
+
+      // 2. Persist to Netlify DB via API function (survives page refresh for all users)
+      // Wrapped in try/catch — endpoint is optional on static deployments (Supabase handles persistence)
+      try {
+        const res = await fetch('/api/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...config, court: { charges, members: courtMembers } }),
+        });
+        if (!res.ok) console.debug('[AdminPanel] /api/config unavailable, using Supabase only.');
+      } catch (_) { /* static deployment — expected */ }
+
+      // 3. Broadcast + DB save via globalStateManager (handles Supabase realtime + DB)
+      await globalStateManager.saveConfig(config);
       
-      // Broadcast all state changes globally via Supabase Realtime
-      await Promise.all([
-        globalStateManager.broadcast('person', person),
-        globalStateManager.broadcast('senders', senders),
-        globalStateManager.broadcast('theme', theme),
-        globalStateManager.broadcast('polaroids', polaroids),
-        globalStateManager.broadcast('court', { charges, members: courtMembers }),
-      ]);
-      
-      // Also dispatch custom events for backward compatibility
+      // 4. Dispatch custom events for backward compatibility
       window.dispatchEvent(new Event('friendsUpdated'));
       window.dispatchEvent(new Event('themeUpdated'));
       window.dispatchEvent(new Event('polaroidsUpdated'));
       
-      // Simulate save completion
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
       setSaveStatus('saved');
       
-      // Reset status and close panel after delay
       setTimeout(() => {
         setSaveStatus('idle');
         onClose();
       }, 1500);
     } catch (err) {
-      console.error('Save failed:', err);
+      // save failed - UI error state already set
       setSaveStatus('error');
       setTimeout(() => setSaveStatus('idle'), 2000);
     }
@@ -273,8 +273,9 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                         <option value="retro">Theme: Retro Green</option>
                       </select>
                       <button 
-                        onClick={() => {
-                          localStorage.removeItem('chaarYaarSequenceDone');
+                        onClick={async () => {
+                          await globalStateManager.resetIntro();
+                          // Reload admin's own page so they also see the intro
                           window.location.reload();
                         }}
                         className="text-sm font-bold text-amber-400 hover:text-amber-300 flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-2 rounded-lg transition-colors border border-amber-500/20"
@@ -433,6 +434,16 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                               className="w-full bg-slate-950 border border-slate-700/80 rounded-md px-3 py-2 text-white text-xs focus:outline-none focus:border-indigo-500 transition-colors"
                             />
                           </div>
+                          <div className="space-y-2">
+                            <label className="text-xs text-slate-500">💬 Back Side Roast (flip pe dikhega)</label>
+                            <textarea
+                              value={polaroid.roastBack || ''}
+                              onChange={(e) => updatePolaroid(polaroid.id, 'roastBack', e.target.value)}
+                              placeholder="Yeh photo mein tu bilkul..."
+                              rows={2}
+                              className="w-full bg-slate-950 border border-slate-700/80 rounded-md px-3 py-2 text-white text-xs focus:outline-none focus:border-amber-500 transition-colors leading-relaxed"
+                            />
+                          </div>
                         </div>
                       ))}
                       {polaroids.length === 0 && (
@@ -443,7 +454,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                     </div>
                   </div>
                   
-                  {/* ── Adalat Section ── */}
+                  {/* ── Chaar Yaar Adalat Section ── */}
                   <div className="space-y-5 mt-2">
                     <h3 className="text-lg font-bold text-white border-b border-slate-800 pb-3 flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-yellow-500" />
@@ -455,13 +466,12 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-mono uppercase tracking-wider text-slate-400">📋 Ilzaam (Charges)</p>
                         <button
-                          onClick={() => setCharges([...charges, { id: `c${Date.now()}`, year: new Date().getFullYear().toString(), crime: '', evidence: '', severity: 'Minor' }])}
+                          onClick={() => setCharges([...charges, { id: `c${Date.now()}`, year: new Date().getFullYear().toString(), crime: '', evidence: '', severity: 'Minor' as const }])}
                           className="flex items-center gap-1 text-xs px-3 py-1.5 bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-400 rounded-lg border border-yellow-600/30 transition-colors"
                         >
-                          <Plus className="w-3 h-3" /> Add Charge
+                          <Plus className="w-3 h-3" /> Naya Ilzaam
                         </button>
                       </div>
-
                       {charges.map((charge, idx) => (
                         <div key={charge.id} className="bg-slate-900/40 border border-slate-800/60 rounded-xl p-4 space-y-3">
                           <div className="flex items-center justify-between">
@@ -472,7 +482,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                           </div>
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
-                              <label className="text-[10px] font-mono uppercase text-slate-500">Saal (Year)</label>
+                              <label className="text-[10px] font-mono uppercase text-slate-500">Saal</label>
                               <input type="text" value={charge.year}
                                 onChange={e => setCharges(charges.map(c => c.id === charge.id ? {...c, year: e.target.value} : c))}
                                 placeholder="2022"
@@ -509,6 +519,11 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                           </div>
                         </div>
                       ))}
+                      {charges.length === 0 && (
+                        <div className="text-center text-slate-600 text-xs font-mono py-4 border border-dashed border-slate-800 rounded-xl">
+                          Koi ilzaam nahi — "Naya Ilzaam" button se add karo
+                        </div>
+                      )}
                     </div>
 
                     {/* Court Members */}
@@ -517,7 +532,7 @@ export default function AdminPanel({ isOpen, onClose }: { isOpen: boolean, onClo
                       {courtMembers.map((member) => (
                         <div key={member.role} className="bg-slate-900/40 border border-slate-800/60 rounded-xl p-4 space-y-3">
                           <span className="text-xs font-bold text-yellow-400 font-mono">{member.role}</span>
-                          <div className="grid grid-cols-1 gap-3">
+                          <div className="space-y-2">
                             <div className="space-y-1">
                               <label className="text-[10px] font-mono uppercase text-slate-500">Naam</label>
                               <input type="text" value={member.name}
